@@ -26,12 +26,10 @@ module StandardAPI
 
           return if model.abstract_class?
           
-          type_class = Class.new(BaseObject) do
-          end
+          type_class = Class.new(BaseObject) {}
 
           model.columns.each do |column|
             type = Types.column_graphql_type(model, column)
-
             next if !type
 
             type_class.field name: column.name,
@@ -39,10 +37,12 @@ module StandardAPI
               null: column.null
           end
 
+          type_class = const_set(type_class_name, type_class)
+
           # TODO: Add relationships
           define_type_includes(type_class, model, includes)
 
-          const_set(type_class_name, type_class)
+          type_class
         end
 
         def define_type_includes(type, model, includes)

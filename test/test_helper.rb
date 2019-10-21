@@ -13,3 +13,10 @@ end
 Rails.application.routes.draw do
   post "/graphql", to: "graphql#execute"
 end
+
+include ActionDispatch::TestProcess
+
+class ActionDispatch::IntegrationTest
+  include ActiveRecord::TestFixtures
+  include FactoryBot::Syntax::Methods
+end

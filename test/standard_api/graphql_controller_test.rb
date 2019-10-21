@@ -15,7 +15,7 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
 
   # = Loading via Models =======================================================
 
-  test 'entry points' do
+  test 'entry points schema' do
     post '/graphql', params: { query: <<-GRAPHQL }
       {
         __schema {
@@ -39,6 +39,35 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
 
       assert_not_nil collection_field
       assert_not_nil singular_field
+    end
+  end
+
+  test 'entry points' do
+    @models.map do |model|
+      singular_name = model.graphql_field_name
+      collection_name = model.graphql_field_name(true)
+
+      next if !FactoryBot.factories.registered?(singular_name)
+
+      records = Array.new(2) { create(singular_name) }
+      record = records.first
+
+      post '/graphql', params: { query: <<-GRAPHQL }
+        {
+          #{singular_name}(id: #{records[0].id}) {
+            #{record.attributes.keys.map { |x| x.camelize(:lower) }.join("\n")}
+          }
+        }
+      GRAPHQL
+
+      json = JSON(response.body)['data']
+
+      record.attributes.each do |k, v|
+        assert_equal v.as_json, json[singular_name][k.camelize(:lower)].as_json
+      end
+
+      fields = json.dig('__schema', 'queryType', 'fields')
+
     end
   end
 
