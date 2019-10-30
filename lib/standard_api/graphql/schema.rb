@@ -2,7 +2,7 @@ module StandardAPI
   module Graphql
     class Schema < ::GraphQL::Schema
 
-      def query()
+      def query
         return @standardapi_query if defined?(@standardapi_query)
 
         self.class.initialize_query

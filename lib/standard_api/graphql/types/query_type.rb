@@ -5,6 +5,7 @@ module StandardAPI
         include StandardAPI::Helpers
 
         class << self
+
           def irep_node_includes(model, typed_children)
             includes = {}
 
@@ -26,17 +27,19 @@ module StandardAPI
 
             includes = model.reflect_on_all_associations.map(&:name)
             type = Types.define_type(model, includes)
+            order_type = Types.define_order_type(model, includes)
 
             field model.graphql_field_name(true), type: [type], null: false do
               argument :limit, ::GraphQL::Types::Int, required: false, default_value: 1000
               argument :offset, ::GraphQL::Types::Int, required: false, default_value: 0
+              argument :order, order_type, required: false, default_value: nil
             end
 
-            define_method(model.graphql_field_name(true)) do |limit:, offset:|
+            define_method(model.graphql_field_name(true)) do |limit:, offset:, order:|
               node = context.irep_node.typed_children.values[0][model.graphql_field_name(true)]
               includes = QueryType.irep_node_includes(model, node.typed_children)
 
-              resources = model.limit(limit).offset(offset)
+              resources = model.limit(limit).offset(offset).sort(order.to_h)
               preloadables(resources, includes)
             end
 
@@ -51,36 +54,6 @@ module StandardAPI
               model.find(id)
             end
 
-          end
-
-          def load_controllers
-            Rails.application.eager_load! if !Rails.application.config.eager_load
-
-            controllers = ApplicationController.descendants
-            controllers.select! do |c|
-              c.ancestors.include?(StandardAPI::Controller)  && !c.ancestors.include?(StandardAPI::Graphql::Controller)
-            end
-
-            controllers.each do |controller|
-              add_controller(controller)
-            end
-          end
-  
-          def add_controller(controller)
-            return if !controller.model
-
-            controller.action_methods.each do |action|
-              add_action_fn = "add_#{action}_action"
-              next if !respond_to?(add_action_fn)
-  
-              send(add_action_fn, controller)
-            end
-          end
-    
-          def add_index_action(controller)
-            model = controller.model
-            type = Types.define_type(model, controller.new.send(:model_includes))
-            field model.model_name.plural, type: [type], null: false
           end
 
         end

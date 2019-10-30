@@ -63,11 +63,23 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
       json = JSON(response.body)['data']
 
       record.attributes.each do |k, v|
-        assert_equal v.as_json, json[singular_name][k.camelize(:lower)].as_json
+        if model.primary_key.to_s == k.to_s
+          assert_equal v.to_s, json[singular_name][k.camelize(:lower)].as_json
+        else
+          case v
+          when nil
+            assert_nil json[singular_name][k.camelize(:lower)].as_json
+          when Float, BigDecimal
+            assert_equal v, json[singular_name][k.camelize(:lower)].as_json
+          when ActiveSupport::TimeWithZone
+            assert_equal v.iso8601, json[singular_name][k.camelize(:lower)].as_json
+          else
+            assert_equal v.as_json, json[singular_name][k.camelize(:lower)].as_json
+          end
+        end
       end
 
       fields = json.dig('__schema', 'queryType', 'fields')
-
     end
   end
 
@@ -159,10 +171,22 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
           next
         end
 
-        expected_column_type = StandardAPI::Graphql::Types.column_graphql_type(model, column).to_s.demodulize
+        expected_column_type = StandardAPI::Graphql::Types.column_graphql_type(model, column)
+        # .to_s.demodulize
+        expected_column_type = case expected_column_type
+        when Array
+          expected_column_type[0].to_s.demodulize
+        else
+          expected_column_type.to_s.demodulize
+        end
+
         if !column.null
           assert_equal "NON_NULL", column_type.dig('type', 'kind')
           assert_equal expected_column_type, column_type.dig('type', 'ofType', 'name')
+        elsif column.array
+          assert_equal "LIST", column_type.dig('type', 'kind')
+          assert_equal "NON_NULL", column_type.dig('type', 'ofType', 'kind')
+          assert_equal expected_column_type, column_type.dig('type', 'ofType', 'ofType', 'name')
         else
           assert_equal expected_column_type, column_type.dig('type', 'name')
         end
@@ -214,6 +238,54 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
 
   end
 
+  test 'limit' do
+    accounts = Array.new(2) { create(:account) }
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(limit: 1) {
+          id
+          name
+        }
+      }
+    GRAPHQL
+
+    json = JSON(response.body).dig('data')
+
+    assert_equal 1, json['accounts'].length
+  end
+
+  test 'offset' do
+    accounts = Array.new(2) { create(:account) }
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(limit: 1, offset: 1) {
+          id
+          name
+        }
+      }
+    GRAPHQL
+
+    json = JSON(response.body).dig('data')
+
+    assert_equal 1, json['accounts'].length
+    assert_equal accounts[1].id.to_s, json['accounts'][0]['id']
+  end
+
+  test 'order' do
+    accounts = Array.new(2) { create(:account) }
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(order: { id: ASC }) { id }
+      }
+    GRAPHQL
+
+    json = JSON(response.body).dig('data', 'accounts')
+
+    assert_equal accounts.sort_by(&:id).first.id.to_s, json[0]['id']
+  end
   # TODO: Test return if model.abstract_class?
   # TODO: Test namesapces models (eg. AH::Mistake AH::Action)
 

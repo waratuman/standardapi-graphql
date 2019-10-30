@@ -20,3 +20,5 @@ class ActionDispatch::IntegrationTest
   include ActiveRecord::TestFixtures
   include FactoryBot::Syntax::Methods
 end
+
+Rails.backtrace_cleaner.remove_silencers!
