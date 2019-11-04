@@ -28,18 +28,20 @@ module StandardAPI
             includes = model.reflect_on_all_associations.map(&:name)
             type = Types.define_type(model, includes)
             order_type = Types.define_order_type(model, includes)
+            predicate_type = Types.define_predicate_type(model, includes)
 
             field model.graphql_field_name(true), type: [type], null: false do
               argument :limit, ::GraphQL::Types::Int, required: false, default_value: 1000
               argument :offset, ::GraphQL::Types::Int, required: false, default_value: 0
               argument :order, order_type, required: false, default_value: nil
+              argument :where, predicate_type, required: false, default_value: {}
             end
 
-            define_method(model.graphql_field_name(true)) do |limit:, offset:, order:|
+            define_method(model.graphql_field_name(true)) do |limit:, offset:, order:, where:|
               node = context.irep_node.typed_children.values[0][model.graphql_field_name(true)]
               includes = QueryType.irep_node_includes(model, node.typed_children)
 
-              resources = model.limit(limit).offset(offset).sort(order.to_h)
+              resources = model.filter(where.to_h).limit(limit).offset(offset).sort(order.to_h)
               preloadables(resources, includes)
             end
 

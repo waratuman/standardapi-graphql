@@ -281,11 +281,41 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
         accounts(order: { id: ASC }) { id }
       }
     GRAPHQL
-
     json = JSON(response.body).dig('data', 'accounts')
-
     assert_equal accounts.sort_by(&:id).first.id.to_s, json[0]['id']
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(order: { id: DESC }) { id }
+      }
+    GRAPHQL
+    json = JSON(response.body).dig('data', 'accounts')
+    assert_equal accounts.sort_by(&:id).last.id.to_s, json[0]['id']
   end
+
+  test 'where' do
+    accounts = Array.new(2) { create(:account, name: 'John Doe') }
+    jane = create(:account, name: 'Jane Doe')
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(where: { name: { eq: "John Doe"} }) { id name }
+      }
+    GRAPHQL
+    json = JSON(response.body).dig('data', 'accounts')
+    assert_equal accounts.map(&:name), json.map { |x| x['name'] }
+    assert_equal accounts.map(&:id).map(&:to_s).sort, json.map { |x| x['id'] }.sort
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        accounts(where: { name: { eq: "Jane Doe"} }) { id name }
+      }
+    GRAPHQL
+    json = JSON(response.body).dig('data', 'accounts')
+    assert_equal ['Jane Doe'], json.map { |x| x['name'] }
+    assert_equal [jane.id.to_s], json.map { |x| x['id'] }
+  end
+
   # TODO: Test return if model.abstract_class?
   # TODO: Test namesapces models (eg. AH::Mistake AH::Action)
 
