@@ -37,7 +37,7 @@ module StandardAPI
               argument :where, predicate_type, required: false, default_value: {}
             end
 
-            define_method(model.graphql_field_name(true)) do |limit:, offset:, order:, where:|
+            define_method(model.graphql_field_name(true).underscore) do |limit:, offset:, order:, where:|
               node = context.irep_node.typed_children.values[0][model.graphql_field_name(true)]
               includes = QueryType.irep_node_includes(model, node.typed_children)
 

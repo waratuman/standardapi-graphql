@@ -5,12 +5,14 @@ require "standard_api/graphql/version"
 class ActiveRecord::Base
 
   def self.graphql_name
-    to_s.gsub('::', '__')
+    name.gsub('::', '__')
   end
 
   def self.graphql_field_name(plural=false)
     if plural
-      (to_s.split('::')[0..-2] + [model_name.plural.camelize]).join('__').camelize(:lower)
+      parts = name.split('::')
+      parts.push(parts.pop.pluralize)
+      parts.join('__').camelize(:lower)
     else
       graphql_name.camelize(:lower)
     end

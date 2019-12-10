@@ -329,6 +329,21 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
 
   end
 
+  # Other
+
+  test 'namespaced models' do
+    NameSpaced::Model.create(name: 'namespaced')
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        nameSpacedModels(limit: 20) { id name }
+      }
+    GRAPHQL
+
+    json = JSON(response.body).dig('data', 'nameSpacedModels')
+    assert_equal ["namespaced"], json.map { |x| x['name'] }
+  end
+
   # TODO: Test return if model.abstract_class?
   # TODO: Test namesapces models (eg. AH::Mistake AH::Action)
 
