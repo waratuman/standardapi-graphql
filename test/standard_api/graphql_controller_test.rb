@@ -29,7 +29,7 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
 
     json = JSON(response.body)['data']
     fields = json.dig('__schema', 'queryType', 'fields')
-    
+
     @models.map do |model|
       collection_name = model.graphql_field_name(true)
       collection_field = fields.find { |x| x['name'] == collection_name }
@@ -223,7 +223,7 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
           else
             assert_equal 'NON_NULL', association_type.dig('type', 'kind')
             assert_equal association.klass.to_s, association_type.dig('type', 'ofType', 'name')
-            
+
           end
         when :has_many, :has_and_belongs_to_many
           assert_equal 'NON_NULL', association_type.dig('type', 'kind')
@@ -296,6 +296,9 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
   test 'where' do
     accounts = Array.new(2) { create(:account, name: 'John Doe') }
     jane = create(:account, name: 'Jane Doe')
+    property = create(:property, name: "Jane's Property", accounts: [jane])
+    create(:property)
+
 
     post '/graphql', params: { query: <<-GRAPHQL }
       {
@@ -314,6 +317,16 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
     json = JSON(response.body).dig('data', 'accounts')
     assert_equal ['Jane Doe'], json.map { |x| x['name'] }
     assert_equal [jane.id.to_s], json.map { |x| x['id'] }
+
+    post '/graphql', params: { query: <<-GRAPHQL }
+      {
+        properties(where: { accounts: { name: { eq: "Jane Doe"} }}) { id name }
+      }
+    GRAPHQL
+    json = JSON(response.body).dig('data', 'properties')
+    assert_equal ["Jane's Property"], json.map { |x| x['name'] }
+    assert_equal [property.id.to_s], json.map { |x| x['id'] }
+
   end
 
   # TODO: Test return if model.abstract_class?
@@ -399,7 +412,7 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
   #     model_type = json.find { |x| x['name'] == model.name }
   #     puts model_type
   #     puts model_type['fields'].map { |x| x['name'] }.inspect
-      
+
   #     associations = model.reflect_on_all_associations
   #     puts associations.map(&:name).inspect
   #     # byebug

@@ -22,12 +22,14 @@ module StandardAPI
 
           if const_defined?(type_class_name)
             type_class = const_get(type_class_name)
-            define_type_includes(type_class = const_get(type_class_name), model, includes)
+
+            # Add relationships
+            define_type_includes(type_class, model, includes)
             return type_class
           end
 
           return if model.abstract_class?
-          
+
           type_class = Class.new(BaseObject) {}
 
           model.columns.each do |column|
@@ -41,67 +43,8 @@ module StandardAPI
 
           type_class = const_set(type_class_name, type_class)
 
+          # Add relationships
           define_type_includes(type_class, model, includes)
-
-          type_class
-        end
-
-        def define_order_type(model, includes=[])
-          type_class_name = "#{model.graphql_name}OrderType"
-
-          if const_defined?(type_class_name)
-            type_class = const_get(type_class_name)
-            # TODO: Add relationships
-            # define_type_includes(type_class = const_get(type_class_name), model, includes)
-            return type_class
-          end
-
-          return if model.abstract_class?
-
-          type_class = Class.new(BaseInputObject) {}
-
-          model.columns.each do |column|
-            type = Types.column_graphql_type(model, column)
-            next if !type
-
-            type_class.argument name: column.name,
-              type: OrderEnum,
-              required: false
-          end
-
-          type_class = const_set(type_class_name, type_class)
-
-          # TODO: Add relationships
-
-          type_class
-        end
-
-        def define_predicate_type(model, includes=[])
-          type_class_name = "#{model.graphql_name}PredicateType"
-
-          if const_defined?(type_class_name)
-            type_class = const_get(type_class_name)
-            # TODO: Add relationships
-            # define_type_includes(type_class = const_get(type_class_name), model, includes)
-            return type_class
-          end
-
-          return if model.abstract_class?
-
-          type_class = Class.new(BaseInputObject) {}
-
-          model.columns.each do |column|
-            type = Types.column_graphql_type(model, column)
-            next if !type
-
-            type_class.argument name: column.name,
-              type: Types.predicate_for(type),
-              required: false
-          end
-
-          type_class = const_set(type_class_name, type_class)
-
-          # TODO: Add relationships
 
           type_class
         end
@@ -139,6 +82,93 @@ module StandardAPI
               type.field name: include,
                 type: association.collection? ? [association_type] : association_type,
                 null: null
+            else
+              Rails.logger.error "This is a method include, fix me"
+            end
+          end
+        end
+
+        def define_order_type(model, includes=[])
+          type_class_name = "#{model.graphql_name}OrderType"
+
+          if const_defined?(type_class_name)
+            type_class = const_get(type_class_name)
+            # TODO: Add relationships
+            # define_type_includes(type_class = const_get(type_class_name), model, includes)
+            return type_class
+          end
+
+          return if model.abstract_class?
+
+          type_class = Class.new(BaseInputObject) {}
+
+          model.columns.each do |column|
+            type = Types.column_graphql_type(model, column)
+            next if !type
+
+            type_class.argument name: column.name,
+              type: OrderEnum,
+              required: false
+          end
+
+          type_class = const_set(type_class_name, type_class)
+
+          # TODO: Add relationships
+
+          type_class
+        end
+
+        def define_predicate_type(model, includes=[])
+          type_class_name = "#{model.graphql_name}PredicateType"
+
+          if const_defined?(type_class_name)
+            type_class = const_get(type_class_name)
+
+            # Add relationships
+            define_predicate_type_includes(type_class, model, includes)
+            return type_class
+          end
+
+          return if model.abstract_class?
+
+          type_class = Class.new(BaseInputObject) {}
+
+          model.columns.each do |column|
+            type = Types.column_graphql_type(model, column)
+            next if !type
+
+            type_class.argument name: column.name,
+              type: Types.predicate_for(type),
+              required: false
+          end
+
+          type_class = const_set(type_class_name, type_class)
+
+          # Add relationships
+          define_predicate_type_includes(type_class, model, includes)
+
+          type_class
+        end
+
+        def define_predicate_type_includes(type, model, includes)
+          includes.each do |include|
+            next if type.arguments[include.to_s]
+
+            association = model.reflect_on_association(include)
+
+            if association.polymorphic?
+              Rails.logger.warn <<-LOG.strip_heredoc
+                StandardAPI::Graphql does not support polymorphic relationships (#{model.to_s}##{association.name}).
+              LOG
+              next
+            end
+
+            if association
+              association_predicate_type = define_predicate_type(association.klass)
+
+              type.argument name: include,
+                type: association.collection? ? [association_predicate_type] : association_predicate_type,
+                required: false
             else
               Rails.logger.error "This is a method include, fix me"
             end
