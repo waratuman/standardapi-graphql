@@ -6,9 +6,9 @@ class GraphqlControllerTest < ActionDispatch::IntegrationTest
     @models = [ Account,
       Document,
       Photo,
-      Photo.const_get('HABTM_Properties'),
+      # Photo.const_get('HABTM_Properties'),
       Property,
-      Property.const_get('HABTM_Photos'),
+      # Property.const_get('HABTM_Photos'),
       Reference
     ]
   end

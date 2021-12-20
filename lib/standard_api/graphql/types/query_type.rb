@@ -15,7 +15,6 @@ module StandardAPI
 
                 if association
                   includes[name] = irep_node_includes(association.klass, node.typed_children)
-                else
                 end
               end
             end
@@ -24,6 +23,9 @@ module StandardAPI
 
           def add_model(model)
             return if model.abstract_class
+
+            # If this is a join model, we don't support direct lookups
+            return if model.respond_to?(:left_model)
 
             includes = model.reflect_on_all_associations.map(&:name)
             type = Types.define_type(model, includes)
@@ -37,9 +39,11 @@ module StandardAPI
               argument :where, predicate_type, required: false, default_value: {}
             end
 
-            define_method(model.graphql_field_name(true).underscore) do |limit:, offset:, order:, where:|
-              node = context.irep_node.typed_children.values[0][model.graphql_field_name(true)]
-              includes = QueryType.irep_node_includes(model, node.typed_children)
+            define_method(model.graphql_field_name(true)) do |limit:, offset:, order:, where:|
+              node = if context.irep_node
+                context.irep_node.typed_children.values[0][model.graphql_field_name(true)]
+              end
+              includes = QueryType.irep_node_includes(model, node&.typed_children || [])
 
               resources = model.filter(where.to_h).limit(limit).offset(offset).sort(order.to_h)
               preloadables(resources, includes)
@@ -55,7 +59,6 @@ module StandardAPI
             define_method(model.graphql_field_name) do |id:|
               model.find(id)
             end
-
           end
 
         end

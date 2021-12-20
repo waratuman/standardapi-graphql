@@ -28,15 +28,15 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency "standardapi", "~> 6.0"
-  spec.add_runtime_dependency "graphql", "~> 1.9"
+  spec.add_runtime_dependency "standardapi", "~> 6.1"
+  spec.add_runtime_dependency "graphql", "~> 1.13.2"
 
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "minitest", "~> 5.0"
   spec.add_development_dependency "pg", "~> 1.1"
   spec.add_development_dependency "jbuilder", "~> 2.9"
-  spec.add_development_dependency "factory_bot_rails", "~> 5.1"
+  spec.add_development_dependency "factory_bot_rails", "~> 6.2"
   spec.add_development_dependency "faker", "~> 2.6"
   spec.add_development_dependency "byebug", "~> 11.0"
   spec.add_development_dependency "mocha", "~> 1.9"
